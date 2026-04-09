@@ -517,7 +517,6 @@
       var REPO  = 'Burning-MTN-Trail-Blazers';
       var FILE  = 'waiver-data.json';
       var BRANCH = 'main';
-      var RAW   = 'https://raw.githubusercontent.com/' + OWNER + '/' + REPO + '/' + BRANCH + '/' + FILE;
       var API   = 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' + FILE;
 
       // Token: stored obfuscated so GitHub doesn't auto-revoke it from source scanning
@@ -540,10 +539,14 @@
 
       // --- Read (no auth needed, public repo) ---
       async function loadSigners() {
-        var res = await fetch(RAW + '?t=' + Date.now());
+        var token = getToken();
+        var headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+        var res = await fetch(API + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: headers });
         if (!res.ok) return [];
         var data = await res.json();
-        return data.signers || [];
+        var decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+        var parsed = JSON.parse(decoded);
+        return parsed.signers || [];
       }
 
       // --- Write (needs token) ---
