@@ -302,7 +302,6 @@
                 <th>#</th>
                 <th>Name</th>
                 <th>Date Signed</th>
-                <th></th>
               </tr>
             </thead>
             <tbody id="waiverBody"></tbody>
@@ -503,9 +502,9 @@
       });
     })();
 
-    // ===== WAIVER SIGN-OFF (shared via jsonblob.com) =====
+    // ===== WAIVER SIGN-OFF (reads from repo, shared across all devices) =====
     (function() {
-      const API  = 'https://jsonblob.com/api/jsonBlob';
+      const DATA_URL = 'https://raw.githubusercontent.com/dustinholstein/Burning-MTN-Trail-Blazers/main/waiver-data.json';
       const form  = document.getElementById('waiverForm');
       const input = document.getElementById('waiverName');
       const tbody = document.getElementById('waiverBody');
@@ -513,63 +512,8 @@
       const table = document.getElementById('waiverTable');
       const note  = document.getElementById('signersNote');
 
-      let blobId  = null;
       let signers = [];
 
-      // --- Blob ID resolution: URL param > localStorage > create new ---
-      function getBlobIdFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('db') || null;
-      }
-
-      function saveBlobIdToURL(id) {
-        const url = new URL(window.location);
-        url.searchParams.set('db', id);
-        window.history.replaceState(null, '', url);
-      }
-
-      async function initBlobId() {
-        // 1. Check URL
-        let id = getBlobIdFromURL();
-        if (id) { localStorage.setItem('bmtb_blob_id', id); return id; }
-        // 2. Check localStorage
-        id = localStorage.getItem('bmtb_blob_id');
-        if (id) { saveBlobIdToURL(id); return id; }
-        // 3. Create new blob
-        const res = await fetch(API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ signers: [] })
-        });
-        if (!res.ok) throw new Error('Failed to create database');
-        const loc = res.headers.get('Location') || res.headers.get('location') || '';
-        id = loc.split('/').pop();
-        if (!id) throw new Error('Could not get database ID');
-        localStorage.setItem('bmtb_blob_id', id);
-        saveBlobIdToURL(id);
-        return id;
-      }
-
-      // --- CRUD ---
-      async function loadSigners() {
-        const res = await fetch(API + '/' + blobId, {
-          headers: { 'Accept': 'application/json' }
-        });
-        if (!res.ok) throw new Error('Failed to load');
-        const data = await res.json();
-        return data.signers || [];
-      }
-
-      async function saveSigners() {
-        const res = await fetch(API + '/' + blobId, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ signers: signers })
-        });
-        if (!res.ok) throw new Error('Failed to save');
-      }
-
-      // --- Render ---
       function escHtml(str) {
         const d = document.createElement('div');
         d.textContent = str;
@@ -590,65 +534,36 @@
           tr.innerHTML =
             '<td>' + (i + 1) + '</td>' +
             '<td>' + escHtml(entry.name) + '</td>' +
-            '<td>' + entry.date + '</td>' +
-            '<td><button class="btn-remove" data-idx="' + i + '" title="Remove">&times;</button></td>';
+            '<td>' + entry.date + '</td>';
           tbody.appendChild(tr);
         });
       }
 
-      function showNote(msg) { note.textContent = msg; }
+      // Load confirmed signers from repo
+      async function loadSigners() {
+        const res = await fetch(DATA_URL + '?t=' + Date.now());
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        return data.signers || [];
+      }
 
-      // --- Events ---
-      form.addEventListener('submit', async function(e) {
+      // Form: notify user that an organizer will confirm
+      form.addEventListener('submit', function(e) {
         e.preventDefault();
         const name = input.value.trim();
-        if (!name || !blobId) return;
-        const btn = form.querySelector('button');
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-        try {
-          signers = await loadSigners();  // refresh first to avoid overwrites
-          signers.push({
-            name: name,
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          });
-          await saveSigners();
-          render();
-          input.value = '';
-        } catch (err) {
-          alert('Error saving. Please try again.');
-        }
-        btn.disabled = false;
-        btn.textContent = 'I Agree & Sign';
+        if (!name) return;
+        alert('Thanks, ' + name + '! Let an organizer know you\'ve signed so they can add you to the confirmed list.');
+        input.value = '';
       });
 
-      tbody.addEventListener('click', async function(e) {
-        if (!e.target.classList.contains('btn-remove')) return;
-        const pw = prompt('Enter admin password to remove:');
-        if (pw !== 'stinkybutt') {
-          alert('Incorrect password.');
-          return;
-        }
-        const idx = parseInt(e.target.dataset.idx, 10);
-        try {
-          signers = await loadSigners();
-          signers.splice(idx, 1);
-          await saveSigners();
-          render();
-        } catch (err) {
-          alert('Error removing. Please try again.');
-        }
-      });
-
-      // --- Init ---
+      // Init
       (async function() {
         try {
-          blobId = await initBlobId();
-          showNote('Shared across all devices. Share this page URL so everyone sees the same list.');
           signers = await loadSigners();
+          note.textContent = 'Confirmed participants — visible to everyone.';
           render();
         } catch (err) {
-          showNote('Could not connect to database. Reload to try again.');
+          note.textContent = 'Could not load participant list. Try reloading.';
           console.error(err);
         }
       })();
