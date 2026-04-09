@@ -822,6 +822,21 @@ section {
   background: rgba(192, 57, 43, 0.1);
 }
 
+.btn-admin {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-light);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.btn-admin:hover {
+  border-color: var(--text-light);
+}
+
 /* ===== JOIN ===== */
 .join {
   background: var(--green-dark);
