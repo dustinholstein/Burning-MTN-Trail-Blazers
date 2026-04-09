@@ -1,3 +1,8 @@
 {
-  "signers": []
+  "signers": [
+    {
+      "name": "test 1",
+      "date": "Apr 9, 2026"
+    }
+  ]
 }
