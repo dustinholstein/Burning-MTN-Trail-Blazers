@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burning Mountain Trailblazers | Running, Hiking &amp; Biking — New Castle, CO</title>
-  <meta name="description" content="Burning Mountain Trailblazers is a recreational running, hiking and biking group based in New Castle, Colorado. Join us every Wednesday evening April through October.">
+  <meta name="description" content="Burning Mountain Trailblazers is a recreational running, hiking and biking group based in New Castle, Colorado. Join us every Thursday evening May through October.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -34,11 +34,11 @@
       <div class="hero-details">
         <div class="hero-detail">
           <strong>Season Starts</strong>
-          April 30th at 6:15 PM
+          May 1st at 6:15 PM
         </div>
         <div class="hero-detail">
-          <strong>Meeting Spot</strong>
-          Downtown — in front of Hogback
+          <strong>Every Thursday</strong>
+          Locations rotate weekly
         </div>
       </div>
     </div>
@@ -51,7 +51,7 @@
       <h2 class="section-title">About the Group</h2>
       <p class="about-intro">
         We're a small, informal group of friends who love getting outside.
-        Every Wednesday evening we meet up for trail running, hiking, or biking
+        Every Thursday evening we meet up for trail running, hiking, or biking
         in and around the Burning Mountain area. No pressure, no paces — just
         good company on good trails.
       </p>
@@ -63,7 +63,7 @@
         </div>
         <div class="about-card">
           <h3><span class="icon">&#9776;</span> Our Routes</h3>
-          <p>Burning Mountain area, Alder Park, Lakota, and surrounding trails. We mix it up every week.</p>
+          <p>Medaris, Prendergast, trails off The Launch Pad, Colorow Trails, and Burning Mountain. We rotate each week.</p>
         </div>
         <div class="about-card">
           <h3><span class="icon">&#9201;</span> Duration</h3>
@@ -111,7 +111,7 @@
         </li>
         <li>
           <span class="rule-icon">7</span>
-          <span><strong>Biking routes.</strong> Biking routes include Alder Park and Lakota. Avoid Medaris and Prendergast — they're too steep.</span>
+          <span><strong>Biking routes.</strong> Biking routes include Alder Park and Lakota. Avoid Medaris and Prendergast — they're too steep for bikes.</span>
         </li>
       </ul>
     </div>
@@ -122,28 +122,83 @@
     <div class="section-inner">
       <div class="accent-bar"></div>
       <h2 class="section-title">2025 Schedule</h2>
-      <p class="section-subtitle">Every Wednesday evening from late April through October.</p>
+      <p class="section-subtitle">Every Thursday at 6:15 PM — meeting spots and trails rotate weekly.</p>
 
       <div class="schedule-grid">
         <div class="schedule-card">
           <div class="sc-label">Season Start</div>
-          <div class="sc-value">April 30</div>
+          <div class="sc-value">May 1</div>
           <p>First outing of the year</p>
         </div>
         <div class="schedule-card">
           <div class="sc-label">Weekly</div>
-          <div class="sc-value">Wednesdays</div>
+          <div class="sc-value">Thursdays</div>
           <p>6:15 PM every week</p>
         </div>
         <div class="schedule-card">
           <div class="sc-label">Season End</div>
-          <div class="sc-value">October 29</div>
+          <div class="sc-value">October 30</div>
           <p>Informal hangout TBD</p>
         </div>
       </div>
 
       <div class="schedule-note">
-        <strong>Note:</strong> No official group event during the week of July 4th. Season-ending hangout details will be shared closer to October 29th.
+        <strong>Note:</strong> No official group event during the week of July 4th. Season-ending hangout details will be shared closer to October 30th.
+      </div>
+
+      <!-- Rotation Legend -->
+      <div class="rotation-legend">
+        <h3>Weekly Rotation</h3>
+        <div class="legend-items">
+          <div class="legend-item">
+            <span class="legend-dot dot-hogback"></span>
+            <div>
+              <strong>Hogback Pizza</strong>
+              <span>Hiking Medaris / Prendergast (alternating)</span>
+            </div>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-lakota"></span>
+            <div>
+              <strong>Lakota Links Golf Course</strong>
+              <span>Hiking trails off The Launch Pad</span>
+            </div>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-alder"></span>
+            <div>
+              <strong>Alder Park</strong>
+              <span>Hiking the Colorow Trails</span>
+            </div>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-elk"></span>
+            <div>
+              <strong>Behind Elk Creek Elementary</strong>
+              <span>Hiking Burning Mountain</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar Grid -->
+      <div id="calendarGrid" class="calendar-container"></div>
+
+      <!-- Full Schedule List -->
+      <div class="full-schedule">
+        <h3>Full Season Schedule</h3>
+        <div class="schedule-table-wrap">
+          <table class="schedule-table" id="scheduleTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Meeting Spot</th>
+                <th>Hike / Trail</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -154,8 +209,8 @@
       <div class="accent-bar"></div>
       <h2 class="section-title">Join Us</h2>
       <p class="join-text">
-        New to the group? We'd love to have you. Just show up on a Wednesday
-        evening at our meeting spot and introduce yourself.
+        New to the group? We'd love to have you. Just show up on a Thursday
+        evening at that week's meeting spot and introduce yourself.
       </p>
 
       <div class="join-waiver">
@@ -202,6 +257,169 @@
         ? '0 2px 20px rgba(0,0,0,0.18)'
         : '0 2px 12px rgba(27,58,45,0.12)';
     });
+
+    // ===== CALENDAR GENERATION =====
+    (function() {
+      const YEAR = 2025;
+      const SKIP_DATES = ['2025-07-03']; // 4th of July week
+
+      // 4-slot rotation; Hogback alternates Medaris/Prendergast
+      const ROTATION = [
+        { meeting: 'Hogback Pizza',             hikeA: 'Medaris', hikeB: 'Prendergast', cls: 'hogback' },
+        { meeting: 'Lakota Links Golf Course',  hikeA: 'The Launch Pad', hikeB: null,   cls: 'lakota'  },
+        { meeting: 'Alder Park',                hikeA: 'Colorow Trails', hikeB: null,   cls: 'alder'   },
+        { meeting: 'Elk Creek Elementary',      hikeA: 'Burning Mountain', hikeB: null,  cls: 'elk'     },
+      ];
+
+      const MONTHS = [
+        { month: 4, name: 'May'       },
+        { month: 5, name: 'June'      },
+        { month: 6, name: 'July'      },
+        { month: 7, name: 'August'    },
+        { month: 8, name: 'September' },
+        { month: 9, name: 'October'   },
+      ];
+
+      const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const DAY_SHORT = ['S','M','T','W','T','F','S'];
+
+      // Generate all event Thursdays
+      function getThursdays() {
+        const events = [];
+        let rotIdx = 0;
+        let hogbackCount = 0;
+        const start = new Date(YEAR, 4, 1);  // May 1
+        const end   = new Date(YEAR, 9, 30); // Oct 30
+
+        let d = new Date(start);
+        while (d <= end) {
+          if (d.getDay() === 4) { // Thursday
+            const iso = d.toISOString().slice(0, 10);
+            if (SKIP_DATES.includes(iso)) {
+              events.push({ date: new Date(d), skip: true });
+            } else {
+              const slot = ROTATION[rotIdx % 4];
+              let hike = slot.hikeA;
+              if (slot.hikeB) {
+                hogbackCount++;
+                hike = (hogbackCount % 2 === 1) ? slot.hikeA : slot.hikeB;
+              }
+              events.push({
+                date: new Date(d),
+                skip: false,
+                meeting: slot.meeting,
+                hike: hike,
+                cls: slot.cls,
+              });
+              rotIdx++;
+            }
+          }
+          d.setDate(d.getDate() + 1);
+        }
+        return events;
+      }
+
+      const events = getThursdays();
+
+      // Build a lookup: "YYYY-MM-DD" -> event
+      const eventMap = {};
+      events.forEach(e => {
+        const key = e.date.getFullYear() + '-' +
+          String(e.date.getMonth()+1).padStart(2,'0') + '-' +
+          String(e.date.getDate()).padStart(2,'0');
+        eventMap[key] = e;
+      });
+
+      // Render calendar grids
+      const container = document.getElementById('calendarGrid');
+      MONTHS.forEach(({month, name}) => {
+        const card = document.createElement('div');
+        card.className = 'cal-month';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'cal-header';
+        header.textContent = name + ' ' + YEAR;
+        card.appendChild(header);
+
+        // Day-of-week row
+        const dowRow = document.createElement('div');
+        dowRow.className = 'cal-dow';
+        DAY_SHORT.forEach(d => {
+          const span = document.createElement('span');
+          span.textContent = d;
+          dowRow.appendChild(span);
+        });
+        card.appendChild(dowRow);
+
+        // Days grid
+        const grid = document.createElement('div');
+        grid.className = 'cal-grid';
+
+        const firstDay = new Date(YEAR, month, 1).getDay();
+        const daysInMonth = new Date(YEAR, month + 1, 0).getDate();
+
+        // Empty cells before first day
+        for (let i = 0; i < firstDay; i++) {
+          const empty = document.createElement('div');
+          empty.className = 'cal-day cal-empty';
+          grid.appendChild(empty);
+        }
+
+        // Day cells
+        for (let day = 1; day <= daysInMonth; day++) {
+          const cell = document.createElement('div');
+          const key = YEAR + '-' +
+            String(month+1).padStart(2,'0') + '-' +
+            String(day).padStart(2,'0');
+          const ev = eventMap[key];
+
+          if (ev && ev.skip) {
+            cell.className = 'cal-day cal-skip';
+            cell.innerHTML = '<span class="cal-num">' + day + '</span>' +
+              '<span class="cal-tag">No event</span>';
+          } else if (ev) {
+            cell.className = 'cal-day cal-event cal-' + ev.cls;
+            const shortMeeting = ev.meeting.replace('Golf Course','').replace('Elementary','Elem').trim();
+            cell.innerHTML = '<span class="cal-num">' + day + '</span>' +
+              '<span class="cal-loc">' + shortMeeting + '</span>' +
+              '<span class="cal-hike">' + ev.hike + '</span>';
+          } else {
+            cell.className = 'cal-day';
+            cell.innerHTML = '<span class="cal-num">' + day + '</span>';
+          }
+
+          grid.appendChild(cell);
+        }
+
+        card.appendChild(grid);
+        container.appendChild(card);
+      });
+
+      // Render full schedule table
+      const tbody = document.getElementById('scheduleBody');
+      const fmt = { weekday: 'short', month: 'short', day: 'numeric' };
+      events.forEach((ev, i) => {
+        const tr = document.createElement('tr');
+        if (ev.skip) {
+          tr.className = 'row-skip';
+          tr.innerHTML =
+            '<td>' + ev.date.toLocaleDateString('en-US', fmt) + '</td>' +
+            '<td colspan="2" class="skip-label">No event — July 4th week</td>';
+        } else {
+          tr.className = 'row-' + ev.cls;
+          const dot = '<span class="td-dot dot-' + ev.cls + '"></span>';
+          const isLast = i === events.length - 1;
+          const suffix = isLast ? ' <span class="finale-tag">Season Finale</span>' : '';
+          tr.innerHTML =
+            '<td>' + ev.date.toLocaleDateString('en-US', fmt) + suffix + '</td>' +
+            '<td>' + dot + ev.meeting + '</td>' +
+            '<td>' + ev.hike + '</td>';
+        }
+        tbody.appendChild(tr);
+      });
+    })();
   </script>
 
 </body>
