@@ -535,44 +535,62 @@
       var table = document.getElementById('waiverTable');
       var signers = [];
 
-      // --- Read (no auth needed, public repo) ---
+      // --- Read ---
       async function loadSigners() {
-        var token = getToken();
-        var headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-        var res = await fetch(API + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: headers });
-        if (!res.ok) return [];
-        var data = await res.json();
-        var decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
-        var parsed = JSON.parse(decoded);
-        return parsed.signers || [];
+        try {
+          var token = getToken();
+          var headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+          var res = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), { headers: headers });
+          if (!res.ok) return [];
+          var data = await res.json();
+          var decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+          return JSON.parse(decoded).signers || [];
+        } catch(e) { console.error('loadSigners:', e); return []; }
       }
 
-      // --- Write with retry (handles SHA conflicts) ---
-      // transformFn: takes current list, returns new list (re-applied on retry)
+      // --- Write with retry ---
       async function saveSigners(transformFn, retries) {
         if (retries === undefined) retries = 3;
         var token = getToken();
         if (!token) throw new Error('NO_TOKEN');
-        // Always get fresh data + SHA
-        var shaRes = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
-          headers: { 'Authorization': 'Bearer ' + token, 'If-None-Match': '' }
+
+        // Fetch current file (may not exist)
+        var fileRes = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
+          headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (!shaRes.ok) throw new Error('SHA fetch failed: ' + shaRes.status);
-        var shaData = await shaRes.json();
-        var decoded = decodeURIComponent(escape(atob(shaData.content.replace(/\n/g, ''))));
-        var current = JSON.parse(decoded).signers || [];
+
+        var current = [];
+        var sha = null;
+        if (fileRes.ok) {
+          var fileData = await fileRes.json();
+          sha = fileData.sha;
+          try {
+            var decoded = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
+            current = JSON.parse(decoded).signers || [];
+          } catch(e) { current = []; }
+        }
+        // If file missing (404), sha stays null → creates new file
+
         var updated = transformFn(current);
         var content = btoa(unescape(encodeURIComponent(JSON.stringify({ signers: updated }, null, 2) + '\n')));
+        var body = { message: 'Update waiver signers', content: content, branch: BRANCH };
+        if (sha) body.sha = sha;
+
         var res = await fetch(API, {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Update waiver signers', content: content, sha: shaData.sha, branch: BRANCH })
+          body: JSON.stringify(body)
         });
+
         if (res.status === 409 && retries > 0) {
-          await new Promise(function(r) { setTimeout(r, 1000); });
+          await new Promise(function(r) { setTimeout(r, 1500); });
           return saveSigners(transformFn, retries - 1);
         }
-        if (!res.ok) throw new Error('Write failed: ' + res.status);
+        if (!res.ok) {
+          var errBody = ''; try { errBody = await res.text(); } catch(e) {}
+          console.error('saveSigners failed:', res.status, errBody);
+          throw new Error('Write failed: ' + res.status);
+        }
         return updated;
       }
 
