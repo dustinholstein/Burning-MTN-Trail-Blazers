@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burning Mountain Trailblazers | Running, Hiking &amp; Biking — New Castle, CO</title>
-  <meta name="description" content="Burning Mountain Trailblazers is a recreational running, hiking and biking group based in New Castle, Colorado. Join us every Thursday evening May through October.">
+  <meta name="description" content="Burning Mountain Trailblazers is a recreational running, hiking and biking group based in New Castle, Colorado. Join us every Thursday evening from late April through October.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -28,13 +28,13 @@
   <!-- ===== HERO ===== -->
   <header class="hero" id="hero">
     <div class="hero-content">
-      <div class="hero-badge">2025 Season</div>
+      <div class="hero-badge">2026 Season</div>
       <h1>Burning <span>Mountain</span> Trailblazers</h1>
       <p class="hero-tagline">A recreational running, hiking &amp; biking group</p>
       <div class="hero-details">
         <div class="hero-detail">
           <strong>Season Starts</strong>
-          May 1st at 6:15 PM
+          April 30th at 6:15 PM
         </div>
         <div class="hero-detail">
           <strong>Every Thursday</strong>
@@ -121,13 +121,13 @@
   <section class="schedule" id="schedule">
     <div class="section-inner">
       <div class="accent-bar"></div>
-      <h2 class="section-title">2025 Schedule</h2>
+      <h2 class="section-title">2026 Schedule</h2>
       <p class="section-subtitle">Every Thursday at 6:15 PM — meeting spots and trails rotate weekly.</p>
 
       <div class="schedule-grid">
         <div class="schedule-card">
           <div class="sc-label">Season Start</div>
-          <div class="sc-value">May 1</div>
+          <div class="sc-value">April 30</div>
           <p>First outing of the year</p>
         </div>
         <div class="schedule-card">
@@ -137,13 +137,13 @@
         </div>
         <div class="schedule-card">
           <div class="sc-label">Season End</div>
-          <div class="sc-value">October 30</div>
+          <div class="sc-value">October 29</div>
           <p>Informal hangout TBD</p>
         </div>
       </div>
 
       <div class="schedule-note">
-        <strong>Note:</strong> No official group event during the week of July 4th. Season-ending hangout details will be shared closer to October 30th.
+        <strong>Note:</strong> No official group event during the week of July 4th. Season-ending hangout details will be shared closer to October 29th.
       </div>
 
       <!-- Rotation Legend -->
@@ -260,8 +260,8 @@
 
     // ===== CALENDAR GENERATION =====
     (function() {
-      const YEAR = 2025;
-      const SKIP_DATES = ['2025-07-03']; // 4th of July week
+      const YEAR = 2026;
+      const SKIP_DATES = ['2026-07-02']; // 4th of July week
 
       // 4-slot rotation; Hogback alternates Medaris/Prendergast
       const ROTATION = [
@@ -272,6 +272,7 @@
       ];
 
       const MONTHS = [
+        { month: 3, name: 'April'     },
         { month: 4, name: 'May'       },
         { month: 5, name: 'June'      },
         { month: 6, name: 'July'      },
@@ -289,8 +290,8 @@
         const events = [];
         let rotIdx = 0;
         let hogbackCount = 0;
-        const start = new Date(YEAR, 4, 1);  // May 1
-        const end   = new Date(YEAR, 9, 30); // Oct 30
+        const start = new Date(YEAR, 3, 30);  // April 30
+        const end   = new Date(YEAR, 9, 29); // Oct 29
 
         let d = new Date(start);
         while (d <= end) {
