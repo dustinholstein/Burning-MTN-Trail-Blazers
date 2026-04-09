@@ -548,30 +548,32 @@
       }
 
       // --- Write with retry (handles SHA conflicts) ---
-      async function writeSigners(list, retries) {
+      // transformFn: takes current list, returns new list (re-applied on retry)
+      async function saveSigners(transformFn, retries) {
         if (retries === undefined) retries = 3;
         var token = getToken();
         if (!token) throw new Error('NO_TOKEN');
-        // Get current SHA (cache-bust)
+        // Always get fresh data + SHA
         var shaRes = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
           headers: { 'Authorization': 'Bearer ' + token, 'If-None-Match': '' }
         });
         if (!shaRes.ok) throw new Error('SHA fetch failed: ' + shaRes.status);
         var shaData = await shaRes.json();
-        // Update file
-        var content = btoa(unescape(encodeURIComponent(JSON.stringify({ signers: list }, null, 2) + '\n')));
+        var decoded = decodeURIComponent(escape(atob(shaData.content.replace(/\n/g, ''))));
+        var current = JSON.parse(decoded).signers || [];
+        var updated = transformFn(current);
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify({ signers: updated }, null, 2) + '\n')));
         var res = await fetch(API, {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Waiver signed', content: content, sha: shaData.sha, branch: BRANCH })
+          body: JSON.stringify({ message: 'Update waiver signers', content: content, sha: shaData.sha, branch: BRANCH })
         });
         if (res.status === 409 && retries > 0) {
-          // SHA conflict — re-read and retry
           await new Promise(function(r) { setTimeout(r, 1000); });
-          list = await loadSigners();
-          return writeSigners(list, retries - 1);
+          return saveSigners(transformFn, retries - 1);
         }
         if (!res.ok) throw new Error('Write failed: ' + res.status);
+        return updated;
       }
 
       function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -596,10 +598,12 @@
         if (!getToken()) { alert('Admin: enter your GitHub token in the admin panel below the table first.'); return; }
         var btn = form.querySelector('button');
         btn.disabled = true; btn.textContent = 'Saving...';
+        var theDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         try {
-          signers = await loadSigners(); // fresh read
-          signers.push({ name: name, date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) });
-          await writeSigners(signers);
+          signers = await saveSigners(function(list) {
+            list.push({ name: name, date: theDate });
+            return list;
+          });
           render(); input.value = '';
         } catch(err) {
           if (err.message === 'NO_TOKEN') alert('No GitHub token configured. See admin panel below.');
@@ -614,10 +618,16 @@
         var pw = prompt('Enter admin password to remove:');
         if (pw !== 'stinkybutt') { alert('Incorrect password.'); return; }
         var idx = parseInt(ev.target.dataset.idx, 10);
+        var nameToRemove = signers[idx] ? signers[idx].name : null;
+        if (!nameToRemove) return;
         try {
-          signers = await loadSigners();
-          signers.splice(idx, 1);
-          await writeSigners(signers);
+          signers = await saveSigners(function(list) {
+            // Find by name in case index shifted
+            for (var i = 0; i < list.length; i++) {
+              if (list[i].name === nameToRemove) { list.splice(i, 1); break; }
+            }
+            return list;
+          });
           render();
         } catch(err) { alert('Error — try again.'); console.error(err); }
       });
