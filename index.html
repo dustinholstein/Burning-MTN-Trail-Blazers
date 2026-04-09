@@ -547,13 +547,14 @@
         return parsed.signers || [];
       }
 
-      // --- Write (needs token) ---
-      async function writeSigners(list) {
+      // --- Write with retry (handles SHA conflicts) ---
+      async function writeSigners(list, retries) {
+        if (retries === undefined) retries = 3;
         var token = getToken();
         if (!token) throw new Error('NO_TOKEN');
-        // Get current SHA
-        var shaRes = await fetch(API + '?ref=' + BRANCH, {
-          headers: { 'Authorization': 'Bearer ' + token }
+        // Get current SHA (cache-bust)
+        var shaRes = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
+          headers: { 'Authorization': 'Bearer ' + token, 'If-None-Match': '' }
         });
         if (!shaRes.ok) throw new Error('SHA fetch failed: ' + shaRes.status);
         var shaData = await shaRes.json();
@@ -564,6 +565,12 @@
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: 'Waiver signed', content: content, sha: shaData.sha, branch: BRANCH })
         });
+        if (res.status === 409 && retries > 0) {
+          // SHA conflict — re-read and retry
+          await new Promise(function(r) { setTimeout(r, 1000); });
+          list = await loadSigners();
+          return writeSigners(list, retries - 1);
+        }
         if (!res.ok) throw new Error('Write failed: ' + res.status);
       }
 
