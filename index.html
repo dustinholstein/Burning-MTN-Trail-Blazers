@@ -564,6 +564,11 @@
 
       tbody.addEventListener('click', function(e) {
         if (e.target.classList.contains('btn-remove')) {
+          const pw = prompt('Enter admin password to remove:');
+          if (pw !== 'stinkybutt') {
+            alert('Incorrect password.');
+            return;
+          }
           const idx = parseInt(e.target.dataset.idx, 10);
           const list = load();
           list.splice(idx, 1);
