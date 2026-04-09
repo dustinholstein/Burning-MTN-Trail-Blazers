@@ -21,6 +21,7 @@
         <li><a href="#rules">Rules</a></li>
         <li><a href="#schedule">Schedule</a></li>
         <li><a href="#join">Join</a></li>
+        <li><a href="#waiver">Waiver</a></li>
       </ul>
     </div>
   </nav>
@@ -203,7 +204,7 @@
     </div>
   </section>
 
-  <!-- ===== JOIN / WAIVER ===== -->
+  <!-- ===== JOIN ===== -->
   <section class="join" id="join">
     <div class="section-inner">
       <div class="accent-bar"></div>
@@ -211,16 +212,9 @@
       <p class="join-text">
         New to the group? We'd love to have you. Just show up on a Thursday
         evening at that week's meeting spot and introduce yourself.
+        All new participants must read and sign the waiver below before
+        their first outing.
       </p>
-
-      <div class="join-waiver">
-        <p>
-          <strong style="color: var(--amber-light);">Liability Waiver Required</strong><br>
-          All new participants must sign a release of liability waiver before
-          their first outing. By participating you agree to our release of
-          liability. Ask an organizer for the waiver link on your first outing.
-        </p>
-      </div>
 
       <div class="organizers-title">Organizers &amp; Contacts</div>
       <div class="organizers">
@@ -228,6 +222,93 @@
         <div class="organizer">Ariel Holstein</div>
         <div class="organizer">Samantha Freese</div>
         <div class="organizer">Sheri Atkinson</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WAIVER ===== -->
+  <section class="waiver-section" id="waiver">
+    <div class="section-inner">
+      <div class="accent-bar"></div>
+      <h2 class="section-title">Liability Waiver</h2>
+      <p class="section-subtitle">Please read carefully before participating.</p>
+
+      <div class="waiver-box">
+        <h3>Release of Liability, Waiver of Claims &amp; Assumption of Risk</h3>
+
+        <p>In consideration of being permitted to participate in any activities organized by
+        Burning Mountain Trailblazers ("the Group"), including but not limited to trail running,
+        hiking, biking, and related social gatherings, I hereby agree to the following:</p>
+
+        <ol>
+          <li><strong>Assumption of Risk.</strong> I acknowledge that outdoor recreational
+          activities involve inherent risks, including but not limited to: uneven or unstable
+          terrain, wildlife encounters, adverse weather conditions, falls, collisions, equipment
+          failure, and physical exertion that may exceed my fitness level. I voluntarily assume
+          all risks associated with my participation.</li>
+
+          <li><strong>Release of Liability.</strong> I, for myself and on behalf of my heirs,
+          assigns, and personal representatives, hereby release, discharge, and hold harmless
+          the Group, its organizers, volunteers, and fellow participants from any and all
+          liability, claims, demands, or causes of action arising out of or related to any
+          injury, illness, death, or property damage that may occur as a result of my
+          participation in Group activities, whether caused by negligence or otherwise.</li>
+
+          <li><strong>Medical Acknowledgment.</strong> I confirm that I am physically fit and
+          have no medical condition that would prevent my safe participation. I understand
+          that the Group does not provide medical personnel or equipment, and I am solely
+          responsible for my own health and safety.</li>
+
+          <li><strong>Personal Property.</strong> I am responsible for my own belongings
+          and equipment. The Group is not liable for any loss, theft, or damage to personal
+          property.</li>
+
+          <li><strong>Trail Rules &amp; Conduct.</strong> I agree to follow all Group rules,
+          stay with the group, obey posted trail rules, respect private property, keep dogs
+          on-leash, and behave in a manner that does not endanger myself or others.</li>
+
+          <li><strong>Photo &amp; Media Release.</strong> I grant the Group permission to use
+          any photographs or videos taken during activities for promotional purposes.</li>
+
+          <li><strong>Governing Law.</strong> This waiver shall be governed by the laws of
+          the State of Colorado. If any provision is found unenforceable, the remaining
+          provisions shall remain in full effect.</li>
+        </ol>
+
+        <p class="waiver-affirm">By typing my full name below, I acknowledge that I have
+        read this waiver in its entirety, understand its contents, and agree to be bound
+        by its terms. I am signing this waiver voluntarily.</p>
+      </div>
+
+      <!-- Sign Form -->
+      <div class="waiver-form">
+        <h3>Sign the Waiver</h3>
+        <form id="waiverForm" autocomplete="off">
+          <div class="form-row">
+            <input type="text" id="waiverName" placeholder="Full name" required>
+            <button type="submit" class="btn-sign">I Agree &amp; Sign</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Signed Names Table -->
+      <div class="waiver-signers">
+        <h3>Signed Participants</h3>
+        <p class="signers-note">Names are stored in your browser's local storage.</p>
+        <div class="schedule-table-wrap">
+          <table class="schedule-table" id="waiverTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Date Signed</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="waiverBody"></tbody>
+          </table>
+        </div>
+        <p class="signers-empty" id="signersEmpty">No signatures yet.</p>
       </div>
     </div>
   </section>
@@ -420,6 +501,78 @@
         }
         tbody.appendChild(tr);
       });
+    })();
+
+    // ===== WAIVER SIGN-OFF =====
+    (function() {
+      const STORAGE_KEY = 'bmtb_waiver_signers';
+      const form  = document.getElementById('waiverForm');
+      const input = document.getElementById('waiverName');
+      const tbody = document.getElementById('waiverBody');
+      const empty = document.getElementById('signersEmpty');
+      const table = document.getElementById('waiverTable');
+
+      function load() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch { return []; }
+      }
+
+      function save(list) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }
+
+      function render() {
+        const list = load();
+        tbody.innerHTML = '';
+        if (list.length === 0) {
+          empty.style.display = '';
+          table.style.display = 'none';
+          return;
+        }
+        empty.style.display = 'none';
+        table.style.display = '';
+        list.forEach((entry, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + escHtml(entry.name) + '</td>' +
+            '<td>' + entry.date + '</td>' +
+            '<td><button class="btn-remove" data-idx="' + i + '" title="Remove">&times;</button></td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+      function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = input.value.trim();
+        if (!name) return;
+        const list = load();
+        list.push({
+          name: name,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        });
+        save(list);
+        render();
+        input.value = '';
+      });
+
+      tbody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-remove')) {
+          const idx = parseInt(e.target.dataset.idx, 10);
+          const list = load();
+          list.splice(idx, 1);
+          save(list);
+          render();
+        }
+      });
+
+      render();
     })();
   </script>
 
