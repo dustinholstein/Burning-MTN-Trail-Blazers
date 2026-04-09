@@ -294,7 +294,7 @@
       <!-- Signed Names Table -->
       <div class="waiver-signers">
         <h3>Signed Participants</h3>
-        <p class="signers-note">Names are stored in your browser's local storage.</p>
+        <p class="signers-note" id="signersNote">Loading...</p>
         <div class="schedule-table-wrap">
           <table class="schedule-table" id="waiverTable">
             <thead>
@@ -308,7 +308,7 @@
             <tbody id="waiverBody"></tbody>
           </table>
         </div>
-        <p class="signers-empty" id="signersEmpty">No signatures yet.</p>
+        <p class="signers-empty" id="signersEmpty" style="display:none">No signatures yet.</p>
       </div>
     </div>
   </section>
@@ -503,35 +503,89 @@
       });
     })();
 
-    // ===== WAIVER SIGN-OFF =====
+    // ===== WAIVER SIGN-OFF (shared via jsonblob.com) =====
     (function() {
-      const STORAGE_KEY = 'bmtb_waiver_signers';
+      const API  = 'https://jsonblob.com/api/jsonBlob';
       const form  = document.getElementById('waiverForm');
       const input = document.getElementById('waiverName');
       const tbody = document.getElementById('waiverBody');
       const empty = document.getElementById('signersEmpty');
       const table = document.getElementById('waiverTable');
+      const note  = document.getElementById('signersNote');
 
-      function load() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-        catch { return []; }
+      let blobId  = null;
+      let signers = [];
+
+      // --- Blob ID resolution: URL param > localStorage > create new ---
+      function getBlobIdFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('db') || null;
       }
 
-      function save(list) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      function saveBlobIdToURL(id) {
+        const url = new URL(window.location);
+        url.searchParams.set('db', id);
+        window.history.replaceState(null, '', url);
+      }
+
+      async function initBlobId() {
+        // 1. Check URL
+        let id = getBlobIdFromURL();
+        if (id) { localStorage.setItem('bmtb_blob_id', id); return id; }
+        // 2. Check localStorage
+        id = localStorage.getItem('bmtb_blob_id');
+        if (id) { saveBlobIdToURL(id); return id; }
+        // 3. Create new blob
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ signers: [] })
+        });
+        if (!res.ok) throw new Error('Failed to create database');
+        const loc = res.headers.get('Location') || res.headers.get('location') || '';
+        id = loc.split('/').pop();
+        if (!id) throw new Error('Could not get database ID');
+        localStorage.setItem('bmtb_blob_id', id);
+        saveBlobIdToURL(id);
+        return id;
+      }
+
+      // --- CRUD ---
+      async function loadSigners() {
+        const res = await fetch(API + '/' + blobId, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        return data.signers || [];
+      }
+
+      async function saveSigners() {
+        const res = await fetch(API + '/' + blobId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ signers: signers })
+        });
+        if (!res.ok) throw new Error('Failed to save');
+      }
+
+      // --- Render ---
+      function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
       }
 
       function render() {
-        const list = load();
         tbody.innerHTML = '';
-        if (list.length === 0) {
+        if (signers.length === 0) {
           empty.style.display = '';
           table.style.display = 'none';
           return;
         }
         empty.style.display = 'none';
         table.style.display = '';
-        list.forEach((entry, i) => {
+        signers.forEach((entry, i) => {
           const tr = document.createElement('tr');
           tr.innerHTML =
             '<td>' + (i + 1) + '</td>' +
@@ -542,42 +596,62 @@
         });
       }
 
-      function escHtml(str) {
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-      }
+      function showNote(msg) { note.textContent = msg; }
 
-      form.addEventListener('submit', function(e) {
+      // --- Events ---
+      form.addEventListener('submit', async function(e) {
         e.preventDefault();
         const name = input.value.trim();
-        if (!name) return;
-        const list = load();
-        list.push({
-          name: name,
-          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        });
-        save(list);
-        render();
-        input.value = '';
+        if (!name || !blobId) return;
+        const btn = form.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        try {
+          signers = await loadSigners();  // refresh first to avoid overwrites
+          signers.push({
+            name: name,
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          });
+          await saveSigners();
+          render();
+          input.value = '';
+        } catch (err) {
+          alert('Error saving. Please try again.');
+        }
+        btn.disabled = false;
+        btn.textContent = 'I Agree & Sign';
       });
 
-      tbody.addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-remove')) {
-          const pw = prompt('Enter admin password to remove:');
-          if (pw !== 'stinkybutt') {
-            alert('Incorrect password.');
-            return;
-          }
-          const idx = parseInt(e.target.dataset.idx, 10);
-          const list = load();
-          list.splice(idx, 1);
-          save(list);
+      tbody.addEventListener('click', async function(e) {
+        if (!e.target.classList.contains('btn-remove')) return;
+        const pw = prompt('Enter admin password to remove:');
+        if (pw !== 'stinkybutt') {
+          alert('Incorrect password.');
+          return;
+        }
+        const idx = parseInt(e.target.dataset.idx, 10);
+        try {
+          signers = await loadSigners();
+          signers.splice(idx, 1);
+          await saveSigners();
           render();
+        } catch (err) {
+          alert('Error removing. Please try again.');
         }
       });
 
-      render();
+      // --- Init ---
+      (async function() {
+        try {
+          blobId = await initBlobId();
+          showNote('Shared across all devices. Share this page URL so everyone sees the same list.');
+          signers = await loadSigners();
+          render();
+        } catch (err) {
+          showNote('Could not connect to database. Reload to try again.');
+          console.error(err);
+        }
+      })();
     })();
   </script>
 
