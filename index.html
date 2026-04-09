@@ -534,44 +534,59 @@
       var empty = document.getElementById('signersEmpty');
       var table = document.getElementById('waiverTable');
       var signers = [];
+      var lastSha = null;   // track SHA locally to avoid cache issues
+      var lastList = null;  // track last known list
 
       // --- Read ---
       async function loadSigners() {
+        if (lastList) return lastList; // use local cache if available
         try {
           var token = getToken();
           var headers = token ? { 'Authorization': 'Bearer ' + token } : {};
           var res = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), { headers: headers });
           if (!res.ok) return [];
           var data = await res.json();
+          lastSha = data.sha;
           var decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
-          return JSON.parse(decoded).signers || [];
+          lastList = JSON.parse(decoded).signers || [];
+          return lastList;
         } catch(e) { console.error('loadSigners:', e); return []; }
       }
 
-      // --- Write with retry ---
+      // --- Fetch fresh SHA + content from API (bypasses local cache) ---
+      async function fetchFreshFile(token) {
+        var res = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) return { signers: [], sha: null };
+        var data = await res.json();
+        var list = [];
+        try {
+          var decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+          list = JSON.parse(decoded).signers || [];
+        } catch(e) {}
+        return { signers: list, sha: data.sha };
+      }
+
+      // --- Write with retry (uses local SHA, falls back to fresh fetch) ---
       async function saveSigners(transformFn, retries) {
         if (retries === undefined) retries = 3;
         var token = getToken();
         if (!token) throw new Error('NO_TOKEN');
 
-        // Fetch current file (may not exist)
-        var fileRes = await fetch(API + '?ref=' + BRANCH + '&_=' + Date.now(), {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-
-        var current = [];
-        var sha = null;
-        if (fileRes.ok) {
-          var fileData = await fileRes.json();
-          sha = fileData.sha;
-          try {
-            var decoded = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
-            current = JSON.parse(decoded).signers || [];
-          } catch(e) { current = []; }
+        var current, sha;
+        if (lastSha && lastList) {
+          // Use locally tracked state (no API call needed)
+          current = lastList;
+          sha = lastSha;
+        } else {
+          // First operation or after error — fetch fresh
+          var fresh = await fetchFreshFile(token);
+          current = fresh.signers;
+          sha = fresh.sha;
         }
-        // If file missing (404), sha stays null → creates new file
 
-        var updated = transformFn(current);
+        var updated = transformFn(current.slice()); // slice to avoid mutating
         var content = btoa(unescape(encodeURIComponent(JSON.stringify({ signers: updated }, null, 2) + '\n')));
         var body = { message: 'Update waiver signers', content: content, branch: BRANCH };
         if (sha) body.sha = sha;
@@ -583,7 +598,9 @@
         });
 
         if (res.status === 409 && retries > 0) {
-          await new Promise(function(r) { setTimeout(r, 1500); });
+          // SHA mismatch — clear local cache, fetch fresh, retry
+          lastSha = null; lastList = null;
+          await new Promise(function(r) { setTimeout(r, 1000); });
           return saveSigners(transformFn, retries - 1);
         }
         if (!res.ok) {
@@ -591,6 +608,12 @@
           console.error('saveSigners failed:', res.status, errBody);
           throw new Error('Write failed: ' + res.status);
         }
+        // Success — capture new SHA from response so next operation doesn't need to fetch
+        try {
+          var resData = await res.json();
+          lastSha = resData.content.sha;
+        } catch(e) { lastSha = null; }
+        lastList = updated;
         return updated;
       }
 
