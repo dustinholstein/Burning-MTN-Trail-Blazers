@@ -302,6 +302,7 @@
                 <th>#</th>
                 <th>Name</th>
                 <th>Date Signed</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="waiverBody"></tbody>
@@ -502,20 +503,73 @@
       });
     })();
 
-    // ===== WAIVER SIGN-OFF (reads from repo, shared across all devices) =====
+    // ===== WAIVER SIGN-OFF (shared via Pantry Cloud) =====
     (function() {
-      const DATA_URL = 'https://raw.githubusercontent.com/dustinholstein/Burning-MTN-Trail-Blazers/main/waiver-data.json';
-      const form  = document.getElementById('waiverForm');
-      const input = document.getElementById('waiverName');
-      const tbody = document.getElementById('waiverBody');
-      const empty = document.getElementById('signersEmpty');
-      const table = document.getElementById('waiverTable');
-      const note  = document.getElementById('signersNote');
+      var PANTRY = 'https://getpantry.cloud/apiv1/pantry';
+      var BASKET = 'bmtb_signers';
+      var form  = document.getElementById('waiverForm');
+      var input = document.getElementById('waiverName');
+      var tbody = document.getElementById('waiverBody');
+      var empty = document.getElementById('signersEmpty');
+      var table = document.getElementById('waiverTable');
+      var note  = document.getElementById('signersNote');
+      var pantryId = null;
+      var signers  = [];
 
-      let signers = [];
+      // --- Pantry ID: URL param > localStorage > auto-create ---
+      function getPantryId() {
+        var p = new URLSearchParams(window.location.search).get('pantry');
+        if (p) { localStorage.setItem('bmtb_pantry', p); return p; }
+        return localStorage.getItem('bmtb_pantry') || null;
+      }
 
-      function escHtml(str) {
-        const d = document.createElement('div');
+      function setPantryURL(id) {
+        var url = new URL(window.location);
+        url.searchParams.set('pantry', id);
+        window.history.replaceState(null, '', url);
+      }
+
+      async function createPantry() {
+        var res = await fetch(PANTRY + '/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'BMTB Waivers', description: 'Trailblazers waiver' })
+        });
+        if (!res.ok) throw new Error('Pantry create failed: ' + res.status);
+        var data = await res.json();
+        if (!data.pantryID) throw new Error('No pantryID in response');
+        return data.pantryID;
+      }
+
+      async function initBasket(id) {
+        await fetch(PANTRY + '/' + id + '/basket/' + BASKET, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ list: [] })
+        });
+      }
+
+      // --- CRUD ---
+      async function loadSigners() {
+        var res = await fetch(PANTRY + '/' + pantryId + '/basket/' + BASKET);
+        if (res.status === 400) { await initBasket(pantryId); return []; }
+        if (!res.ok) throw new Error('Load failed: ' + res.status);
+        var data = await res.json();
+        return data.list || [];
+      }
+
+      async function saveSigners() {
+        var res = await fetch(PANTRY + '/' + pantryId + '/basket/' + BASKET, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ list: signers })
+        });
+        if (!res.ok) throw new Error('Save failed: ' + res.status);
+      }
+
+      // --- Render ---
+      function esc(str) {
+        var d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
       }
@@ -529,42 +583,66 @@
         }
         empty.style.display = 'none';
         table.style.display = '';
-        signers.forEach((entry, i) => {
-          const tr = document.createElement('tr');
+        signers.forEach(function(entry, i) {
+          var tr = document.createElement('tr');
           tr.innerHTML =
             '<td>' + (i + 1) + '</td>' +
-            '<td>' + escHtml(entry.name) + '</td>' +
-            '<td>' + entry.date + '</td>';
+            '<td>' + esc(entry.name) + '</td>' +
+            '<td>' + esc(entry.date) + '</td>' +
+            '<td><button class="btn-remove" data-idx="' + i + '" title="Remove">&times;</button></td>';
           tbody.appendChild(tr);
         });
       }
 
-      // Load confirmed signers from repo
-      async function loadSigners() {
-        const res = await fetch(DATA_URL + '?t=' + Date.now());
-        if (!res.ok) throw new Error('Failed to load');
-        const data = await res.json();
-        return data.signers || [];
-      }
-
-      // Form: notify user that an organizer will confirm
-      form.addEventListener('submit', function(e) {
+      // --- Events ---
+      form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        const name = input.value.trim();
-        if (!name) return;
-        alert('Thanks, ' + name + '! Let an organizer know you\'ve signed so they can add you to the confirmed list.');
-        input.value = '';
-      });
-
-      // Init
-      (async function() {
+        var name = input.value.trim();
+        if (!name || !pantryId) return;
+        var btn = form.querySelector('button');
+        btn.disabled = true; btn.textContent = 'Saving...';
         try {
           signers = await loadSigners();
-          note.textContent = 'Confirmed participants — visible to everyone.';
+          signers.push({ name: name, date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) });
+          await saveSigners();
+          render();
+          input.value = '';
+        } catch (err) { alert('Error saving — try again.'); console.error(err); }
+        btn.disabled = false; btn.textContent = 'I Agree & Sign';
+      });
+
+      tbody.addEventListener('click', async function(e) {
+        if (!e.target.classList.contains('btn-remove')) return;
+        var pw = prompt('Enter admin password to remove:');
+        if (pw !== 'stinkybutt') { alert('Incorrect password.'); return; }
+        var idx = parseInt(e.target.dataset.idx, 10);
+        try {
+          signers = await loadSigners();
+          signers.splice(idx, 1);
+          await saveSigners();
+          render();
+        } catch (err) { alert('Error removing — try again.'); console.error(err); }
+      });
+
+      // --- Init ---
+      (async function() {
+        try {
+          pantryId = getPantryId();
+          if (!pantryId) {
+            note.textContent = 'Setting up shared database...';
+            pantryId = await createPantry();
+            localStorage.setItem('bmtb_pantry', pantryId);
+          }
+          setPantryURL(pantryId);
+          note.innerHTML = 'Shared list — everyone with this URL sees the same names. <button id="copyLink" style="background:var(--green-dark);color:#fff;border:none;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-left:6px;">Copy link</button>';
+          document.getElementById('copyLink').addEventListener('click', function() {
+            navigator.clipboard.writeText(window.location.href).then(function() { alert('Link copied!'); });
+          });
+          signers = await loadSigners();
           render();
         } catch (err) {
-          note.textContent = 'Could not load participant list. Try reloading.';
-          console.error(err);
+          note.textContent = 'Could not connect. Check your connection and reload.';
+          console.error('Waiver init error:', err);
         }
       })();
     })();
