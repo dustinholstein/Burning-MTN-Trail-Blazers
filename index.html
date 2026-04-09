@@ -294,7 +294,6 @@
       <!-- Signed Names Table -->
       <div class="waiver-signers">
         <h3>Signed Participants</h3>
-        <p class="signers-note" id="signersNote">Loading...</p>
         <div class="schedule-table-wrap">
           <table class="schedule-table" id="waiverTable">
             <thead>
@@ -534,7 +533,6 @@
       var tbody = document.getElementById('waiverBody');
       var empty = document.getElementById('signersEmpty');
       var table = document.getElementById('waiverTable');
-      var note  = document.getElementById('signersNote');
       var signers = [];
 
       // --- Read (no auth needed, public repo) ---
@@ -638,13 +636,8 @@
       (async function() {
         try {
           signers = await loadSigners();
-          var hasToken = !!getToken();
-          note.textContent = hasToken
-            ? 'Shared list — everyone sees the same names.'
-            : 'Shared list — read only. Admin: set up token below to enable signing.';
           render();
         } catch(err) {
-          note.textContent = 'Could not load list. Try reloading.';
           console.error(err);
         }
       })();
